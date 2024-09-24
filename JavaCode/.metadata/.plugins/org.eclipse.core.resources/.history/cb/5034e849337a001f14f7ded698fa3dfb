@@ -1,0 +1,46 @@
+package cs523.bitcoinprice.consumer;
+
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaInputDStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class BitcoinPriceListener {
+    private static final Logger logger = LoggerFactory.getLogger(BitcoinPriceListener.class);
+
+    public static void process(JavaInputDStream<ConsumerRecord<String, String>> stream) {
+        JavaDStream<String> bitcoinPrices = stream.map(ConsumerRecord::value);
+
+        bitcoinPrices.foreachRDD(rdd -> {
+            rdd.foreach(record -> {
+                try {
+                    // Parse the record as JSON using Gson
+                    JsonObject jsonObject = new JsonParser().parse(record).getAsJsonObject();
+                    
+                    // Extract fields from the JSON
+                    String assetId = jsonObject.get("assetId").getAsString();
+                    double price = jsonObject.get("price").getAsDouble();
+                    String timestamp = jsonObject.get("timestamp").getAsString();
+                    double size = jsonObject.get("size").getAsDouble();
+
+                    // Log the processed data
+                    logger.info("Processed Bitcoin Price: assetId={}, price={}, timestamp={}, size={}",
+                            assetId, price, timestamp, size);
+                    
+                    // Create BitcoinPrice object
+                    BitcoinPrice bitcoinPrice = new BitcoinPrice(assetId, price, timestamp, size);
+
+                    // Insert the BitcoinPrice object into HBase
+                    BitcoinPriceHbaseTable.populateData(bitcoinPrice);
+                    
+                } catch (Exception e) {
+                    // Handle JSON parsing error
+                    logger.error("Invalid JSON received: " + record, e);
+                }
+            });
+        });
+    }
+}

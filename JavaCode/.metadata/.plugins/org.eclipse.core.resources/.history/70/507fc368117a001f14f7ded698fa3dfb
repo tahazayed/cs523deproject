@@ -1,0 +1,81 @@
+package cs523.bitcoinprice.consumer;
+
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.streaming.Durations;
+import org.apache.spark.streaming.api.java.JavaInputDStream;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.kafka010.ConsumerStrategies;
+import org.apache.spark.streaming.kafka010.KafkaUtils;
+import org.apache.spark.streaming.kafka010.LocationStrategies;
+
+import java.util.*;
+
+public class BitcoinPriceListener {
+
+    public static void main(String[] args) throws Exception {
+
+        // Spark configuration
+        SparkConf conf = new SparkConf().setMaster("local[2]").setAppName("BitcoinPriceListener");
+        JavaSparkContext jsc = new JavaSparkContext(conf);
+        JavaStreamingContext ssc = new JavaStreamingContext(jsc, Durations.seconds(5));
+
+        // Kafka parameters
+        Map<String, Object> kafkaParams = new HashMap<>();
+        kafkaParams.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        kafkaParams.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        kafkaParams.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
+        kafkaParams.put(ConsumerConfig.GROUP_ID_CONFIG, "bitcoin-price-consumer-group");
+        kafkaParams.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
+        kafkaParams.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, false);
+
+        // Kafka topics to subscribe
+        Collection<String> topics = Arrays.asList("bitcoin-price");
+
+        // Create direct Kafka stream using new API
+        JavaInputDStream<ConsumerRecord<String, String>> stream =
+                KafkaUtils.createDirectStream(
+                        ssc,
+                        LocationStrategies.PreferConsistent(),
+                        ConsumerStrategies.Subscribe(topics, kafkaParams)
+                );
+
+        // Process each RDD from the stream
+        stream.foreachRDD(rdd -> {
+            JavaRDD<BitcoinPrice> priceRDD = rdd.map(record -> {
+                String message = record.value();
+                try {
+                    // Try to parse the message as a JSON object
+                    return new Gson().fromJson(message, BitcoinPrice.class);
+                } catch (JsonSyntaxException e) {
+                    // Handle the case where it's not a valid JSON object
+                    System.err.println("Invalid JSON: " + message);
+                    return null;  // Or handle it differently
+                }
+            }).filter(Objects::nonNull);  // Filter out null values
+
+            // Process each valid BitcoinPrice entry
+            priceRDD.foreach(price -> {
+                System.out.println("Received BitcoinPrice: " + price);
+                try {
+                    BitcoinPriceHbaseTable.populateData(price);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            });
+        });
+
+        // Start the streaming context
+        ssc.start();
+        ssc.awaitTermination();
+    }
+}

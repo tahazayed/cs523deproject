@@ -1,0 +1,74 @@
+package cs523.bitcoinprice.consumer;
+
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+
+import java.io.IOException;
+
+public class BitcoinPriceHbaseTable {
+
+    private static final String TABLE_NAME = "bitcoin_price";
+    private static final String COLUMN_FAMILY = "price-info";
+
+    private static Connection connection = null;
+
+    static {
+        try {
+            // Initialize HBase configuration and connection
+            Configuration config = HBaseConfiguration.create();
+            connection = ConnectionFactory.createConnection(config);
+            System.out.println("HBase connection established.");
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Error establishing HBase connection: " + e.getMessage());
+        }
+    }
+
+    // Method to insert BitcoinPrice into HBase
+    public static void populateData(BitcoinPrice bitcoinPrice) {
+        if (connection == null) {
+            System.err.println("HBase connection is not established.");
+            return;
+        }
+
+        try (Table table = connection.getTable(TableName.valueOf(TABLE_NAME))) {
+
+            // Create a new row in HBase using assetId as the row key
+            Put put = new Put(Bytes.toBytes(bitcoinPrice.getAssetId()));
+
+            // Add columns for the Bitcoin price data
+            put.addColumn(Bytes.toBytes(COLUMN_FAMILY), Bytes.toBytes("price"), Bytes.toBytes(bitcoinPrice.getPrice()));
+            put.addColumn(Bytes.toBytes(COLUMN_FAMILY), Bytes.toBytes("timestamp"), Bytes.toBytes(bitcoinPrice.getTimestamp()));
+            put.addColumn(Bytes.toBytes(COLUMN_FAMILY), Bytes.toBytes("size"), Bytes.toBytes(bitcoinPrice.getSize()));
+
+            // Store the row in the HBase table
+            table.put(put);
+            System.out.println("Inserted BitcoinPrice into HBase: " + bitcoinPrice);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.err.println("Error inserting data into HBase: " + e.getMessage());
+        }
+    }
+
+    // Close HBase connection when done
+    public static void closeConnection() {
+        if (connection != null) {
+            try {
+                connection.close();
+                System.out.println("HBase connection closed.");
+            } catch (IOException e) {
+                e.printStackTrace();
+                System.err.println("Error closing HBase connection: " + e.getMessage());
+            }
+        } else {
+            System.out.println("HBase connection was already closed or never established.");
+        }
+    }
+}

@@ -1,0 +1,65 @@
+package cs523.bitcoinprice.consumer;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
+
+import kafka.serializer.StringDecoder;
+
+import org.apache.spark.SparkConf;
+import org.apache.spark.streaming.Durations;
+import org.apache.spark.streaming.api.java.JavaPairInputDStream;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.kafka.KafkaUtils;
+
+import scala.Tuple2;
+
+public class BitcoinPriceStream {
+    public static void main(String[] args) throws InterruptedException {
+        // Spark configuration
+        SparkConf conf = new SparkConf()
+                .setAppName("BitcoinPriceListener")
+                .setMaster("local[*]");
+        JavaStreamingContext streamingContext = new JavaStreamingContext(conf, Durations.seconds(5));
+
+        // Kafka parameters
+        HashMap<String, String> kafkaParams = new HashMap<>();
+        kafkaParams.put("metadata.broker.list", "localhost:9092");
+        kafkaParams.put("group.id", "bitcoin-price-consumer-group");
+        kafkaParams.put("auto.offset.reset", "largest");
+
+        // Topics
+        Set<String> topics = new HashSet<>(Arrays.asList("bitcoin-price"));
+
+        // Create direct Kafka stream using the older API (Kafka 0.8/0.10)
+        JavaPairInputDStream<String, String> stream =
+                KafkaUtils.createDirectStream(
+                        streamingContext,
+                        String.class,
+                        String.class,
+                        StringDecoder.class,
+                        StringDecoder.class,
+                        kafkaParams,
+                        topics
+                );
+
+        // Process the stream
+        stream.foreachRDD(rdd -> {
+            if (!rdd.isEmpty()) {
+                rdd.foreach(record -> {
+                    // record is a Tuple2<String, String>
+                    String key = record._1();
+                    String value = record._2();
+                    // Process the key and value as needed
+                    System.out.println("Key: " + key + ", Value: " + value);
+                    BitcoinPriceListener.process(stream);
+                });
+            }
+        });
+
+        // Start streaming
+        streamingContext.start();
+        streamingContext.awaitTermination();
+    }
+}

@@ -1,0 +1,77 @@
+package cs523.bitcoinprice.consumer;
+
+import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import kafka.serializer.StringDecoder;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hbase.HBaseConfiguration;
+import org.apache.hadoop.hbase.HColumnDescriptor;
+import org.apache.hadoop.hbase.HTableDescriptor;
+import org.apache.hadoop.hbase.TableName;
+import org.apache.hadoop.hbase.client.Admin;
+import org.apache.hadoop.hbase.client.Connection;
+import org.apache.hadoop.hbase.client.ConnectionFactory;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Table;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.kafka.common.serialization.StringDeserializer;
+import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
+import org.apache.spark.api.java.JavaRDD;
+import org.apache.spark.streaming.Durations;
+import org.apache.spark.streaming.api.java.JavaPairInputDStream;
+import org.apache.spark.streaming.api.java.JavaStreamingContext;
+import org.apache.spark.streaming.kafka.KafkaUtils;
+
+import scala.Tuple2;
+import scala.Tuple3;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+public class BitcoinPriceListener {
+    private static final Logger logger = LoggerFactory.getLogger(BitcoinPriceListener.class);
+
+    public static void process(JavaInputDStream<String, String> stream) {
+        JavaDStream<String> bitcoinPrices = stream.map(ConsumerRecord::value);
+
+        bitcoinPrices.foreachRDD(rdd -> {
+            rdd.foreach(record -> {
+                try {
+                    // Parse the record as JSON using Gson
+                    JsonObject jsonObject = new JsonParser().parse(record).getAsJsonObject();
+                    
+                    // Extract fields from the JSON
+                    String assetId = jsonObject.get("assetId").getAsString();
+                    double price = jsonObject.get("price").getAsDouble();
+                    String timestamp = jsonObject.get("timestamp").getAsString();
+                    double size = jsonObject.get("size").getAsDouble();
+
+                    // Log the processed data
+                    logger.info("Processed Bitcoin Price: assetId={}, price={}, timestamp={}, size={}",
+                            assetId, price, timestamp, size);
+                    
+                    // Create BitcoinPrice object
+                    BitcoinPrice bitcoinPrice = new BitcoinPrice(assetId, price, timestamp, size);
+
+                    // Insert the BitcoinPrice object into HBase
+                    BitcoinPriceHbaseTable.populateData(bitcoinPrice);
+                    
+                } catch (Exception e) {
+                    // Handle JSON parsing error
+                    logger.error("Invalid JSON received: " + record, e);
+                }
+            });
+        });
+    }
+    
+  
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<workingSetManager>
+<workingSet editPageId="org.eclipse.jdt.ui.JavaWorkingSetPage" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1727029120140_1" label="kafkaproducer" name="kafkaproducer">
+<item factoryID="org.eclipse.ui.internal.model.ResourceFactory" path="/producer" type="4"/>
+</workingSet>
+<workingSet editPageId="org.eclipse.ui.resourceWorkingSetPage" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1727029424054_2" label="kafkaconsumer" name="kafkaconsumer"/>
+<workingSet editPageId="org.eclipse.ui.resourceWorkingSetPage" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1727060491839_3" label="consumer" name="consumer"/>
+<workingSet aggregate="true" factoryID="org.eclipse.ui.internal.WorkingSetFactory" id="1727027440190_0" label="Window Working Set" name="Aggregate for window 1727027440189"/>
+</workingSetManager>

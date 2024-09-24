@@ -1,0 +1,42 @@
+package cs523.bitcoinprice.consumer;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.spark.streaming.api.java.JavaDStream;
+import org.apache.spark.streaming.api.java.JavaInputDStream;
+import org.apache.spark.streaming.kafka010.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class BitcoinPriceListener {
+    private static final Logger logger = LoggerFactory.getLogger(BitcoinPriceListener.class);
+    private static final ObjectMapper objectMapper = new ObjectMapper(); // Jackson ObjectMapper
+
+    public static void process(JavaInputDStream<ConsumerRecord<String, String>> stream) {
+        JavaDStream<String> bitcoinPrices = stream.map(ConsumerRecord::value);
+
+        bitcoinPrices.foreachRDD(rdd -> {
+            rdd.foreach(record -> {
+                try {
+                    // Parse the record as JSON
+                    JsonNode jsonNode = objectMapper.readTree(record);
+                    
+                    // Extract fields from the JSON
+                    String assetId = jsonNode.get("assetId").asText();
+                    double price = jsonNode.get("price").asDouble();
+                    String timestamp = jsonNode.get("timestamp").asText();
+                    double size = jsonNode.get("size").asDouble();
+
+                    // Now you can process the fields as needed
+                    logger.info("Processed Bitcoin Price: assetId={}, price={}, timestamp={}, size={}",
+                            assetId, price, timestamp, size);
+
+                } catch (Exception e) {
+                    // Handle JSON parsing error
+                    logger.error("Invalid JSON received: " + record, e);
+                }
+            });
+        });
+    }
+}

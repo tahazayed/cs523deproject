@@ -1,0 +1,5 @@
+package cs523.bitcoinprice.producer;
+
+public class UnsafeOkHttpClient {
+
+}
