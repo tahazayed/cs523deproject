@@ -16,6 +16,7 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.types.DataTypes;
 import org.apache.spark.sql.types.StructType;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -35,7 +36,7 @@ public class BitcoinPriceSparkSql {
         StructType schema = new StructType()
                 .add("assetId", DataTypes.StringType)
                 .add("price", DataTypes.DoubleType)
-                .add("timestamp", DataTypes.StringType)
+                .add("timestamp", DataTypes.LongType)  // Store timestamp as LONG (UNIX epoch time)
                 .add("size", DataTypes.DoubleType);
 
         List<org.apache.spark.sql.Row> data = new ArrayList<>();
@@ -48,10 +49,15 @@ public class BitcoinPriceSparkSql {
             for (Result result : table.getScanner(scan)) {
                 String assetId = Bytes.toString(result.getRow()); // Assuming assetId is the row key
                 double price = Bytes.toDouble(result.getValue(Bytes.toBytes("price-info"), Bytes.toBytes("price")));
-                String timestamp = Bytes.toString(result.getValue(Bytes.toBytes("price-info"), Bytes.toBytes("timestamp")));
+
+                // Read the timestamp as a long (UNIX epoch time)
+                long timestampMillis = Bytes.toLong(result.getValue(Bytes.toBytes("price-info"), Bytes.toBytes("timestamp")));
+
+                // Directly store the timestamp as long
                 double size = Bytes.toDouble(result.getValue(Bytes.toBytes("price-info"), Bytes.toBytes("size")));
 
-                data.add(RowFactory.create(assetId, price, timestamp, size));
+                // Add the row data with the long timestamp
+                data.add(RowFactory.create(assetId, price, timestampMillis, size));
             }
 
         } catch (Exception e) {

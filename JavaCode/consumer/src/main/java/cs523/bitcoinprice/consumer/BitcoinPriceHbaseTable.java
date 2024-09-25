@@ -9,6 +9,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hbase.HBaseConfiguration;
 
 import java.io.IOException;
+import java.time.Instant;
 
 public class BitcoinPriceHbaseTable {
 
@@ -66,7 +67,11 @@ public class BitcoinPriceHbaseTable {
 
             // Add columns for the Bitcoin price data
             put.addColumn(Bytes.toBytes(COLUMN_FAMILY), Bytes.toBytes("price"), Bytes.toBytes(bitcoinPrice.getPrice()));
-            put.addColumn(Bytes.toBytes(COLUMN_FAMILY), Bytes.toBytes("timestamp"), Bytes.toBytes(bitcoinPrice.getTimestamp()));
+
+            // Convert timestamp to UNIX epoch time in milliseconds and store it as long
+            long timestampMillis = Instant.parse(bitcoinPrice.getTimestamp()).toEpochMilli();
+            put.addColumn(Bytes.toBytes(COLUMN_FAMILY), Bytes.toBytes("timestamp"), Bytes.toBytes(timestampMillis));
+
             put.addColumn(Bytes.toBytes(COLUMN_FAMILY), Bytes.toBytes("size"), Bytes.toBytes(bitcoinPrice.getSize()));
 
             // Store the row in the HBase table
