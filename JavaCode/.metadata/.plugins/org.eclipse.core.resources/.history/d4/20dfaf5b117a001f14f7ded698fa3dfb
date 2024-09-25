@@ -1,5 +1,0 @@
-package cs523.bitcoinprice.consumer;
-
-public class BitcoinPriceStream {
-
-}

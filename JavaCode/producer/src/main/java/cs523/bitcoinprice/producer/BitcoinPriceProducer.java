@@ -17,7 +17,7 @@ import java.util.Properties;
 public class BitcoinPriceProducer {
 
     // CoinAPI Key
-    private static final String API_KEY = "364167C8-AB6B-40ED-8E1D-9313DFAD82FE";
+    private static final String API_KEY = "";
     private static final String KAFKA_TOPIC = "bitcoin-price";
     private static final String KAFKA_BROKER = "localhost:9092";
     
