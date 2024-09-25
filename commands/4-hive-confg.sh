@@ -1,6 +1,6 @@
 #!/bin/sh
 
-clean=true
+clean=false
 
 while getopts 'c' opt; do
 	case $opt in
