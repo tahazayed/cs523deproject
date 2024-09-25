@@ -1,6 +1,6 @@
 # CS 523 DE : Big Data Technology
 
-** How to run **
+## How to run ##
 - Run all shell scripts under commands/ directory except 4-hive-confg.sh
 - Build all java projects using: mvn package 
 - java -jar target/producer-0.0.1-SNAPSHOT.jar
