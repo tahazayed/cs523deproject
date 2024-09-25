@@ -1,37 +1,29 @@
--- Create a Hive database (if needed)
+-- Create a Hive database if it doesn't exist
 CREATE DATABASE IF NOT EXISTS bitcoin_data;
 
--- Use the created database
+-- Switch to the created database
 USE bitcoin_data;
 
--- Create a Hive table for Bitcoin price data
-CREATE TABLE IF NOT EXISTS bitcoin_price (
-    asset_id STRING,       -- assetId in BitcoinPrice
-    price DOUBLE,          -- price in BitcoinPrice
-    timestamp STRING,      -- timestamp in BitcoinPrice
-    size DOUBLE            -- size in BitcoinPrice
+-- Create an external Hive table that maps to an existing HBase table
+CREATE EXTERNAL TABLE IF NOT EXISTS bitcoin_price_hbase (
+    asset_id STRING,       -- Row key (maps to HBase row key)
+    price DOUBLE,          -- Maps to HBase column 'price-info:price'
+    timestamp STRING,      -- Maps to HBase column 'price-info:timestamp'
+    size DOUBLE            -- Maps to HBase column 'price-info:size'
 )
-ROW FORMAT DELIMITED
-FIELDS TERMINATED BY ','
-STORED AS TEXTFILE;
+STORED BY 'org.apache.hadoop.hive.hbase.HBaseStorageHandler' 
+WITH SERDEPROPERTIES (
+    "hbase.columns.mapping" = ":key,price-info:price,price-info:timestamp,price-info:size"
+)
+TBLPROPERTIES ("hbase.table.name" = "bitcoin_price");
 
--- Load initial data into the table (optional, if you have a CSV or other source)
--- Example of loading data from HDFS, if data is already stored in HDFS
--- LOAD DATA INPATH '/user/hadoop/bitcoin_price_data.csv' INTO TABLE bitcoin_price;
-
--- Example query: Show the top 10 latest prices for Bitcoin
-SELECT * FROM bitcoin_price
-WHERE asset_id = 'BITSTAMP_SPOT_BTC_USD'  -- Replace with the actual symbol_id if needed
+-- Select data from the HBase-backed Hive table
+SELECT * FROM bitcoin_price_hbase
 ORDER BY timestamp DESC
 LIMIT 10;
 
--- Example: Calculate the average Bitcoin price over a specific time period
-SELECT AVG(price) AS avg_price FROM bitcoin_price
-WHERE asset_id = 'BITSTAMP_SPOT_BTC_USD'  -- Replace with the actual symbol_id if needed
-  AND timestamp BETWEEN '2024-01-01' AND '2024-12-31';
+-- Example: Calculate the average Bitcoin price 
+SELECT AVG(price) AS avg_price FROM bitcoin_price_hbase;
 
--- Example: Show the total volume of Bitcoin traded in a specific time period
-SELECT SUM(size) AS total_volume FROM bitcoin_price
-WHERE asset_id = 'BITSTAMP_SPOT_BTC_USD'  -- Replace with the actual symbol_id if needed
-  AND timestamp BETWEEN '2024-01-01' AND '2024-12-31';
-
+-- Example: Show the total volume of Bitcoin traded 
+SELECT SUM(size) AS total_volume FROM bitcoin_price_hbase;
