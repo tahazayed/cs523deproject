@@ -27,8 +27,5 @@ SHOW TABLES;
 DESCRIBE bitcoin_price_hbase;
 
 -- Select data from the HBase-backed Hive table and keep the timestamp column for sorting
-SELECT asset_id, price, timestamp, from_unixtime(CAST(timestamp / 1000 AS BIGINT)) AS readable_timestamp, size
-FROM bitcoin_price_hbase
-ORDER BY timestamp DESC
-LIMIT 10;
-
+SELECT avg(price) as avg_price
+FROM bitcoin_price_hbase;
